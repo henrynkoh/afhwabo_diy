@@ -75,18 +75,20 @@ export async function savePlanToCloud(plan: RenovationPlan) {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
 
+  const planData = {
+    id: plan.property.mlsNumber || plan.property.address,
+    user_id: user.id,
+    property_data: plan.property,
+    compliance_issues: plan.complianceIssues,
+    tasks: plan.tasks,
+    summary: plan.summary,
+    generated_at: plan.generatedAt.toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
   const { data, error } = await client
     .from('renovation_plans')
-    .upsert({
-      id: plan.property.mlsNumber || plan.property.address,
-      user_id: user.id,
-      property_data: plan.property,
-      compliance_issues: plan.complianceIssues,
-      tasks: plan.tasks,
-      summary: plan.summary,
-      generated_at: plan.generatedAt.toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+    .upsert(planData as any)
     .select()
     .single();
 

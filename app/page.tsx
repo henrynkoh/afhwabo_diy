@@ -1,19 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { PropertyInputForm } from '@/components/property-input-form';
 import { RenovationDashboard } from '@/components/renovation-dashboard';
 import { usePlanStore } from '@/store/use-plan-store';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
-import { NWMLSFetcher, generateMockPropertyData } from '@/lib/nwmls-fetcher';
-import { AFHAnalyzer } from '@/lib/afh-analyzer';
-import { PlanGenerator } from '@/lib/plan-generator';
-import { getCredentials } from '@/lib/tauri-commands';
-import type { PropertyData } from '@/types';
-
-// Check if running in Tauri
-const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
 
 export default function Home() {
   const { currentPlan, setPlan, isLoading, setLoading, error, setError } = usePlanStore();
@@ -31,46 +23,33 @@ export default function Home() {
     setError(null);
 
     try {
-      let property: PropertyData;
+      // Step 1: Fetch property data (using API route - server-side only)
+      const fetchResponse = await fetch('/api/fetch-property', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
 
-      // Step 1: Fetch property data
-      if (data.useMock || !isTauri) {
-        // Use mock data for development or web mode
-        property = generateMockPropertyData(data.mlsNumber);
-      } else {
-        // Real NWMLS fetch using Playwright
-        const credentials = await getCredentials();
-        if (!credentials) {
-          throw new Error('NWMLS credentials required. Please enter your credentials in settings.');
-        }
-
-        const fetcher = new NWMLSFetcher();
-        try {
-          await fetcher.initialize(credentials);
-          
-          if (data.mlsNumber) {
-            property = await fetcher.fetchByMLS(data.mlsNumber);
-          } else if (data.address) {
-            property = await fetcher.fetchByAddress(data.address, data.city, data.state);
-          } else {
-            throw new Error('MLS number or address required');
-          }
-          
-          await fetcher.close();
-        } catch (err) {
-          await fetcher.close();
-          throw err;
-        }
+      if (!fetchResponse.ok) {
+        const errorData = await fetchResponse.json();
+        throw new Error(errorData.error || 'Failed to fetch property data');
       }
 
-      // Step 2: Analyze compliance
-      const analyzer = new AFHAnalyzer();
-      const issues = analyzer.analyze(property);
+      const { property } = await fetchResponse.json();
 
-      // Step 3: Generate renovation plan
-      const generator = new PlanGenerator();
-      const plan = generator.generatePlan(property, issues);
+      // Step 2: Generate renovation plan (using API route - server-side only)
+      const planResponse = await fetch('/api/generate-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ property }),
+      });
 
+      if (!planResponse.ok) {
+        const errorData = await planResponse.json();
+        throw new Error(errorData.error || 'Failed to generate plan');
+      }
+
+      const { plan } = await planResponse.json();
       setPlan(plan);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

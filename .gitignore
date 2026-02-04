@@ -39,3 +39,30 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tauri
+src-tauri/target/
+src-tauri/Cargo.lock
+
+# rust
+**/*.rs.bk
+**/target/
+
+# environment variables
+.env.local
+.env*.local
+
+# os
+.DS_Store
+Thumbs.db
+
+# ide
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# logs
+*.log
+logs/

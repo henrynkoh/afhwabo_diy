@@ -74,7 +74,7 @@ export const usePlanStore = create<PlanStore>()(
           const plans = await loadPlansFromCloud();
           // For now, load the most recent plan
           if (plans && plans.length > 0) {
-            const latestPlan = plans[0];
+            const latestPlan = plans[0] as any; // Supabase types are complex, use any for now
             // Convert from Supabase format to RenovationPlan
             const plan: RenovationPlan = {
               property: latestPlan.property_data,

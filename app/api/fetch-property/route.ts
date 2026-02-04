@@ -1,8 +1,25 @@
 // API route for fetching property data from NWMLS
+// This is a server-only route - Playwright will only run here
+// Mark as server-only to prevent client bundling
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { NWMLSFetcher, generateMockPropertyData } from '@/lib/nwmls-fetcher';
 import type { PropertyData, NWMLSCredentials } from '@/types';
+
+// Dynamic import to ensure Playwright is only loaded server-side
+// Use string path to prevent static analysis
+async function getNWMLSFetcher() {
+  // @ts-ignore - Dynamic import prevents bundling
+  const module = await import('@/lib/nwmls-fetcher.server');
+  return module.NWMLSFetcher;
+}
+
+async function getMockData() {
+  // @ts-ignore - Dynamic import prevents bundling
+  const module = await import('@/lib/nwmls-fetcher.server');
+  return module.generateMockPropertyData;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +28,7 @@ export async function POST(request: NextRequest) {
 
     // Use mock data for development/testing
     if (useMock || process.env.NODE_ENV === 'development') {
+      const generateMockPropertyData = await getMockData();
       const mockData = generateMockPropertyData(mlsNumber);
       return NextResponse.json({ property: mockData, source: 'mock' });
     }
@@ -23,6 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const NWMLSFetcher = await getNWMLSFetcher();
     const fetcher = new NWMLSFetcher();
     
     try {
