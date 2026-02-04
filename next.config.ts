@@ -32,16 +32,27 @@ const nextConfig: NextConfig = {
         '@playwright/test': 'commonjs @playwright/test',
       });
       
-      // Ignore Playwright files using webpack.IgnorePlugin
+      // Ignore Playwright files using webpack.IgnorePlugin - more aggressive
       config.plugins = config.plugins || [];
       config.plugins.push(
         new webpack.IgnorePlugin({
           resourceRegExp: /^playwright$/,
-          contextRegExp: /node_modules/,
         }),
         new webpack.IgnorePlugin({
           resourceRegExp: /^playwright-core$/,
-          contextRegExp: /node_modules/,
+        }),
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^@playwright\/test$/,
+        }),
+        // Ignore any file that imports playwright
+        new webpack.IgnorePlugin({
+          checkResource: (resource: string, context: string) => {
+            if (context.includes('node_modules/playwright') || 
+                context.includes('node_modules/playwright-core')) {
+              return true;
+            }
+            return false;
+          },
         })
       );
     }

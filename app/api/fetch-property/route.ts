@@ -1,71 +1,57 @@
 // API route for fetching property data from NWMLS
-// This is a server-only route - Playwright will only run here
-// Mark as server-only to prevent client bundling
+// This is a server-only route
+// For web deployment (Vercel), only mock data is available
+// Real NWMLS fetching requires Tauri desktop app
+
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import type { PropertyData, NWMLSCredentials } from '@/types';
+import type { PropertyData } from '@/types';
 
-// Dynamic import to ensure Playwright is only loaded server-side
-// Use string path to prevent static analysis
-async function getNWMLSFetcher() {
-  // @ts-ignore - Dynamic import prevents bundling
-  const module = await import('@/lib/nwmls-fetcher.server');
-  return module.NWMLSFetcher;
-}
-
-async function getMockData() {
-  // @ts-ignore - Dynamic import prevents bundling
-  const module = await import('@/lib/nwmls-fetcher.server');
-  return module.generateMockPropertyData;
+// Mock data generator (no Playwright dependency)
+function generateMockPropertyData(mlsNumber?: string): PropertyData {
+  return {
+    mlsNumber: mlsNumber || '9876543',
+    address: '1234 Example Street',
+    city: 'Seattle',
+    state: 'WA',
+    zipCode: '98105',
+    squareFeet: 2500,
+    bedrooms: 4,
+    bathrooms: 2.5,
+    yearBuilt: 1985,
+    levels: 2,
+    roomDimensions: [
+      { roomType: 'Master Bedroom', length: 14, width: 12, squareFeet: 168 },
+      { roomType: 'Bedroom 2', length: 12, width: 10, squareFeet: 120 },
+      { roomType: 'Bedroom 3', length: 11, width: 9, squareFeet: 99 },
+      { roomType: 'Bedroom 4', length: 10, width: 8, squareFeet: 80 },
+    ],
+    hasStairs: true,
+    hasRamp: false,
+    photoUrls: [],
+    floorPlanUrl: undefined,
+  };
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { mlsNumber, address, city, state, useMock, credentials } = body;
+    const { mlsNumber, address, city, state, useMock } = body;
 
-    // Use mock data for development/testing
-    if (useMock || process.env.NODE_ENV === 'development') {
-      const generateMockPropertyData = await getMockData();
-      const mockData = generateMockPropertyData(mlsNumber);
-      return NextResponse.json({ property: mockData, source: 'mock' });
-    }
-
-    // Real NWMLS fetch
-    if (!credentials || !credentials.username || !credentials.password) {
-      return NextResponse.json(
-        { error: 'NWMLS credentials required' },
-        { status: 400 }
-      );
-    }
-
-    const NWMLSFetcher = await getNWMLSFetcher();
-    const fetcher = new NWMLSFetcher();
+    // For web deployment, always use mock data
+    // Real NWMLS fetching is only available in Tauri desktop app
+    // This prevents Playwright from being bundled in web builds
+    const mockData = generateMockPropertyData(mlsNumber);
+    return NextResponse.json({ 
+      property: mockData, 
+      source: 'mock',
+      note: 'Web deployment uses mock data. For real NWMLS data, use the Tauri desktop app.'
+    });
     
-    try {
-      await fetcher.initialize(credentials as NWMLSCredentials);
-      
-      let property: PropertyData;
-      if (mlsNumber) {
-        property = await fetcher.fetchByMLS(mlsNumber);
-      } else if (address) {
-        property = await fetcher.fetchByAddress(address, city, state);
-      } else {
-        return NextResponse.json(
-          { error: 'MLS number or address required' },
-          { status: 400 }
-        );
-      }
-
-      await fetcher.close();
-      
-      return NextResponse.json({ property, source: 'nwmls' });
-    } catch (error) {
-      await fetcher.close();
-      throw error;
-    }
+    // Note: Real NWMLS fetching code removed for web deployment
+    // It's available in lib/nwmls-fetcher.server.ts for Tauri desktop app only
   } catch (error) {
     console.error('Error fetching property:', error);
     return NextResponse.json(
